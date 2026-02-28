@@ -45,7 +45,8 @@ java -cp out com.lld.elevatorsystem.ElevatorSystemDemo
 | `Person` | Passenger | — |
 | `FloorPanel` | UP/DOWN buttons on a floor | `requestElevator()` |
 | `ElevatorSelectionStrategy` | Selection algorithm interface | `selectElevator()` |
-| `NearestElevatorStrategy` | Picks nearest available elevator | `selectElevator()` |
+| `NearestElevatorStrategy` | Simple: nearest available | `selectElevator()` |
+| `SmartElevatorStrategy` | Cost-based: considers direction + position | `selectElevator()` |
 
 ---
 
@@ -61,10 +62,39 @@ java -cp out com.lld.elevatorsystem.ElevatorSystemDemo
 - **MOVING** → Travelling to a floor
 - **MAINTENANCE** → Out of service
 
-### Selection Logic (NearestElevatorStrategy)
-1. Find elevators going in the same direction that haven't passed the pickup floor
-2. Among those, pick the nearest one
-3. If none found, pick any nearest available elevator
+### How Does the System Decide Which Elevator to Send?
+
+This is the core interview question. Two strategies are provided:
+
+**NearestElevatorStrategy** (simple)
+1. Find elevators going in the same direction that haven't passed the floor
+2. Pick the nearest one
+3. Fallback: any nearest available elevator
+
+**SmartElevatorStrategy** (cost-based — the one interviewers want to hear)
+
+Calculates a cost for every elevator and picks the lowest:
+
+| Elevator State | Condition | Cost | Why |
+|---|---|---|---|
+| IDLE | — | `distance` | Just come to me |
+| MOVING same dir | Floor is ahead | `distance` | Best: picks up on the way |
+| MOVING same dir | Floor is behind | `3 * distance` | Must finish run, reverse, come back |
+| MOVING opposite dir | — | `2 * distance` | Must finish current direction first |
+| MAINTENANCE / full | — | skip | Unavailable |
+
+**Example:** 30-floor building, 5 elevators. E1@10, E2@20, E3@5, E4@15, E5@25.
+Person at floor 15 presses DOWN:
+- E1@10: cost = 5, E2@20: cost = 5, E3@5: cost = 10, **E4@15: cost = 0**, E5@25: cost = 10
+- E4 wins — it's right there.
+
+### What About Multiple People on the Same Floor?
+
+`requestElevator()` is `synchronized`. If 5 people press the button at floor 10 "simultaneously":
+1. Thread safety ensures requests are processed one at a time (no race conditions)
+2. After each request, the assigned elevator moves — its position updates
+3. Next request sees the updated positions and the strategy picks the new best elevator
+4. Result: requests naturally **distribute across elevators** (see Scenario 1 in demo)
 
 ---
 
@@ -191,10 +221,15 @@ system.setSelectionStrategy(new NearestElevatorStrategy());
 // Later: system.setSelectionStrategy(new LeastLoadedStrategy());
 ```
 
-### 2. NearestElevatorStrategy Logic
-Two-pass selection — shows you think about optimization:
-1. **First pass**: elevators going in the same direction that haven't passed the floor
-2. **Fallback**: any nearest available elevator
+### 2. SmartElevatorStrategy — Cost-Based Dispatching
+The key interview differentiator. Scores each elevator by estimated cost:
+```java
+IDLE                              → cost = distance
+Same direction, floor ahead       → cost = distance (on the way!)
+Same direction, floor behind      → cost = 3 * distance (finish + reverse + come back)
+Opposite direction                → cost = 2 * distance (finish current first)
+```
+Picks lowest cost. Naturally handles: morning rush, mid-day random requests, same-floor batching.
 
 ### 3. Elevator.canServe() — Smart Availability Check
 Considers state, capacity, direction, and position:
