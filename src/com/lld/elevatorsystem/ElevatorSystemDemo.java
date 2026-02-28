@@ -21,81 +21,96 @@ public class ElevatorSystemDemo {
 
         // Floor keypads (destination dispatch — passengers enter floor number)
         FloorPanel ground = new FloorPanel(0);
-        FloorPanel floor15 = new FloorPanel(15);
-        FloorPanel floor25 = new FloorPanel(25);
 
         // ──────────────────────────────────────────────
-        // SCENARIO 1: Morning rush — 5 people at ground floor, all going UP
-        // Shows how system distributes requests across elevators
+        // SCENARIO 1: Morning rush — 8 people at ground floor
+        //   - Multiple people entering the SAME destination (floor 10)
+        //   - Multiple people entering DIFFERENT destinations
+        //   - Shows how system distributes across elevators
         // ──────────────────────────────────────────────
         System.out.println("=== SCENARIO 1: Morning Rush at Ground Floor ===\n");
 
+        // 3 people all enter "10" on the keypad (same destination)
         ElevatorRequest r1 = ground.requestElevator(new Person("P1", "Alice"), 10);
         System.out.println();
-        // E1 picks Alice: 0 → 10. E1 now at floor 10.
+        // All elevators at 0, E1 picked (first match). E1 → floor 10.
 
-        ElevatorRequest r2 = ground.requestElevator(new Person("P2", "Bob"), 20);
+        ElevatorRequest r2 = ground.requestElevator(new Person("P2", "Bob"), 10);
         System.out.println();
-        // E2 picks Bob: 0 → 20. (E1 at 10, E2/E3/E4/E5 at 0 — E2 nearest)
+        // E1 at 10 (dist 10), E2-E5 at 0 (dist 0). E2 picked. E2 → floor 10.
 
-        ElevatorRequest r3 = ground.requestElevator(new Person("P3", "Charlie"), 5);
+        ElevatorRequest r3 = ground.requestElevator(new Person("P3", "Charlie"), 10);
         System.out.println();
-        // E3 picks Charlie: 0 → 5. (E3/E4/E5 still at 0)
+        // E1,E2 at 10. E3-E5 at 0 (dist 0). E3 picked. E3 → floor 10.
+        // 3 elevators now at floor 10, 2 still at ground.
 
-        ElevatorRequest r4 = ground.requestElevator(new Person("P4", "Diana"), 15);
+        // 2 people enter "20" (same destination, different from above)
+        ElevatorRequest r4 = ground.requestElevator(new Person("P4", "Diana"), 20);
         System.out.println();
-        // E4 picks Diana: 0 → 15. (E4/E5 still at 0)
+        // E4,E5 at 0 (dist 0). E4 picked. E4 → floor 20.
 
-        ElevatorRequest r5 = ground.requestElevator(new Person("P5", "Eve"), 25);
+        ElevatorRequest r5 = ground.requestElevator(new Person("P5", "Eve"), 20);
         System.out.println();
-        // E5 picks Eve: 0 → 25. (last elevator at 0)
+        // E5 at 0 (dist 0), others far. E5 picked. E5 → floor 20.
+
+        // Mix: different destinations from here
+        ElevatorRequest r6 = ground.requestElevator(new Person("P6", "Frank"), 5);
+        System.out.println();
+        // All elevators away. Nearest to ground wins.
+
+        ElevatorRequest r7 = ground.requestElevator(new Person("P7", "Grace"), 25);
+        System.out.println();
+
+        ElevatorRequest r8 = ground.requestElevator(new Person("P8", "Hank"), 10);
+        System.out.println();
+        // Another person to floor 10 — whichever elevator is nearest to ground now.
 
         System.out.println("--- After Morning Rush ---");
         System.out.println(system.getStatusDisplay());
 
         // ──────────────────────────────────────────────
-        // SCENARIO 2: Mid-day — requests from various floors
-        // Shows how system picks the nearest elevator
+        // SCENARIO 2: Mid-day — requests from upper floors
+        // Shows how system picks the nearest elevator from scattered positions
         // ──────────────────────────────────────────────
-        System.out.println("=== SCENARIO 2: Mid-day Requests ===\n");
-        // Current positions: E1@10, E2@20, E3@5, E4@15, E5@25
+        System.out.println("=== SCENARIO 2: Mid-day Requests from Upper Floors ===\n");
 
-        ElevatorRequest r6 = floor15.requestElevator(new Person("P6", "Frank"), 2);
-        System.out.println();
-        // E4 is right at floor 15! Distance = 0. Best pick.
+        FloorPanel floor15 = new FloorPanel(15);
+        FloorPanel floor25 = new FloorPanel(25);
 
-        ElevatorRequest r7 = floor25.requestElevator(new Person("P7", "Grace"), 10);
+        ElevatorRequest r9 = floor15.requestElevator(new Person("P9", "Ivy"), 2);
         System.out.println();
-        // E5 at 25, distance 0 to pickup. Best pick.
+
+        ElevatorRequest r10 = floor25.requestElevator(new Person("P10", "Jake"), 8);
+        System.out.println();
 
         System.out.println("--- After Mid-day ---");
         System.out.println(system.getStatusDisplay());
 
         // ──────────────────────────────────────────────
-        // SCENARIO 3: Same floor, multiple people, different destinations
-        // Shows how consecutive requests from same floor distribute
+        // SCENARIO 3: Evening rush — multiple people at floor 20, mixed destinations
+        //   - Some going down, some going further up
+        //   - Shows dispatching from a non-ground floor
         // ──────────────────────────────────────────────
-        System.out.println("=== SCENARIO 3: Multiple People at Floor 10 ===\n");
-        // Current: E1@10, E2@20, E3@5, E4@2, E5@10
-        FloorPanel floor10 = new FloorPanel(10);
+        System.out.println("=== SCENARIO 3: Evening Rush at Floor 20 ===\n");
 
-        ElevatorRequest r8 = floor10.requestElevator(new Person("P8", "Hank"), 28);
-        System.out.println();
-        // E1 at 10 or E5 at 10 — both distance 0, E1 wins (first match)
+        FloorPanel floor20 = new FloorPanel(20);
 
-        ElevatorRequest r9 = floor10.requestElevator(new Person("P9", "Ivy"), 0);
+        ElevatorRequest r11 = floor20.requestElevator(new Person("P11", "Kate"), 0);
         System.out.println();
-        // E5 still at 10 (distance 0), E3 at 5 (distance 5). E5 wins.
 
-        ElevatorRequest r10 = floor10.requestElevator(new Person("P10", "Jake"), 22);
+        ElevatorRequest r12 = floor20.requestElevator(new Person("P12", "Leo"), 0);
         System.out.println();
-        // E2 at 20 (distance 10), E3 at 5 (distance 5), etc. Nearest wins.
+        // Same destination (ground floor) — gets a different elevator
+
+        ElevatorRequest r13 = floor20.requestElevator(new Person("P13", "Mia"), 28);
+        System.out.println();
+        // Going further up from floor 20
 
         System.out.println("--- Final Positions ---");
         System.out.println(system.getStatusDisplay());
 
         System.out.println("=== All Completed Requests ===");
-        ElevatorRequest[] all = {r1, r2, r3, r4, r5, r6, r7, r8, r9, r10};
+        ElevatorRequest[] all = {r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13};
         for (ElevatorRequest r : all) {
             System.out.println("  " + r);
         }

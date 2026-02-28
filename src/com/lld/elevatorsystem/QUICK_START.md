@@ -84,13 +84,13 @@ Calculates a cost for every elevator and picks the lowest:
 | MAINTENANCE / full | — | skip | Unavailable |
 
 **Example:** 30-floor building, 5 elevators. E1@10, E2@20, E3@5, E4@15, E5@25.
-Person at floor 15 presses DOWN:
+Person at floor 15 enters "2" on keypad (wants to go to floor 2):
 - E1@10: cost = 5, E2@20: cost = 5, E3@5: cost = 10, **E4@15: cost = 0**, E5@25: cost = 10
-- E4 wins — it's right there.
+- E4 wins — it's right there. Panel displays: "Go to E4"
 
 ### What About Multiple People on the Same Floor?
 
-`requestElevator()` is `synchronized`. If 5 people press the button at floor 10 "simultaneously":
+`requestElevator()` is `synchronized`. If 5 people enter destinations on the floor 10 keypad "simultaneously":
 1. Thread safety ensures requests are processed one at a time (no race conditions)
 2. After each request, the assigned elevator moves — its position updates
 3. Next request sees the updated positions and the strategy picks the new best elevator
@@ -143,31 +143,27 @@ ElevatorRequest request = system.requestElevator(
 
 ```
 === Tech Tower Elevator System ===
-  Elevator E1: Floor 0, IDLE, Passengers: 0/8
-  Elevator E2: Floor 0, IDLE, Passengers: 0/8
-  Elevator E3: Floor 0, IDLE, Passengers: 0/8
+  Elevator E1: Floor 0, IDLE, Passengers: 0/10
+  Elevator E2: Floor 0, IDLE, Passengers: 0/10
 
---- Passengers Requesting Elevators ---
+--- Alice at ground floor enters "5" on keypad ---
 
 [E1] Picked up Alice [P1] at Floor 0
 [E1] Moving UP: Floor 0 -> Floor 5
 [E1] Dropped off Alice [P1] at Floor 5
-  [Floor 0 Panel] Completed: Request[REQ-1] Alice [P1]: Floor 0 -> Floor 5 (UP) via E1
+  [Floor 0 Panel] Alice → Go to E1
+
+--- Bob at ground floor enters "7" on keypad ---
 
 [E2] Picked up Bob [P2] at Floor 0
 [E2] Moving UP: Floor 0 -> Floor 7
 [E2] Dropped off Bob [P2] at Floor 7
-  [Floor 0 Panel] Completed: Request[REQ-2] Bob [P2]: Floor 0 -> Floor 7 (UP) via E2
+  [Floor 0 Panel] Bob → Go to E2
 
 --- Final Elevator Positions ---
 === Tech Tower Elevator System ===
-  Elevator E1: Floor 5, IDLE, Passengers: 0/8
-  Elevator E2: Floor 7, IDLE, Passengers: 0/8
-  Elevator E3: Floor 0, IDLE, Passengers: 0/8
-
---- Completed Requests ---
-  Request[REQ-1] Alice [P1]: Floor 0 -> Floor 5 (UP) via E1
-  Request[REQ-2] Bob [P2]: Floor 0 -> Floor 7 (UP) via E2
+  Elevator E1: Floor 5, IDLE, Passengers: 0/10
+  Elevator E2: Floor 7, IDLE, Passengers: 0/10
 ```
 
 ---
