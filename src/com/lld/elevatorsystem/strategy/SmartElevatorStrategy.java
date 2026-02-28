@@ -6,17 +6,19 @@ import com.lld.elevatorsystem.models.Elevator;
 import java.util.List;
 
 /**
- * Cost-based elevator selection strategy.
+ * Cost-based elevator selection with passenger grouping.
  *
- * For each elevator, calculates a "cost" to serve the request.
- * Picks the elevator with the lowest cost.
+ * Key behavior: if an elevator already has pending pickups at the SAME floor,
+ * it gets cost 0 — so multiple people at the same floor are grouped into
+ * one elevator (just like real destination dispatch systems).
  *
- * Cost cases:
- *   IDLE                                  → distance to pickup floor
- *   Same direction, floor is ahead        → distance (best: picks up on the way)
- *   Same direction, floor is behind       → high penalty (must finish run, reverse, come back)
- *   Opposite direction                    → medium penalty (must finish current direction first)
- *   MAINTENANCE or full capacity          → skip entirely
+ * Cost table:
+ *   Pending pickup at same floor          → 0   (group them!)
+ *   IDLE                                  → distance + 1
+ *   Same direction, floor is ahead        → distance + 1
+ *   Same direction, floor is behind       → 3 * distance + 1
+ *   Opposite direction                    → 2 * distance + 1
+ *   MAINTENANCE or full capacity          → skip
  */
 public class SmartElevatorStrategy implements ElevatorSelectionStrategy {
 
@@ -40,31 +42,30 @@ public class SmartElevatorStrategy implements ElevatorSelectionStrategy {
         if (elevator.getState() == ElevatorState.MAINTENANCE) return Integer.MAX_VALUE;
         if (!elevator.isAvailable()) return Integer.MAX_VALUE;
 
+        // Group with elevator already collecting at same floor — best case
+        if (elevator.hasPendingPickupAt(pickupFloor)) {
+            return 0;
+        }
+
         int distance = elevator.getDistanceTo(pickupFloor);
 
-        // IDLE — just the distance, no penalty
+        // +1 offset so grouping (cost 0) always wins over distance-based costs
         if (elevator.getState() == ElevatorState.IDLE) {
-            return distance;
+            return distance + 1;
         }
 
         Direction elevatorDir = elevator.getDirection();
         int currentFloor = elevator.getCurrentFloor();
 
         if (elevatorDir == requestDir) {
-            // Same direction — check if floor is ahead or behind
             boolean floorIsAhead =
                 (requestDir == Direction.UP && currentFloor <= pickupFloor) ||
                 (requestDir == Direction.DOWN && currentFloor >= pickupFloor);
 
-            if (floorIsAhead) {
-                // Best case: elevator will pass this floor on the way
-                return distance;
-            }
-            // Floor is behind: elevator must finish its run, reverse, then reach pickup
-            return 3 * distance;
+            if (floorIsAhead) return distance + 1;
+            return 3 * distance + 1;
         }
 
-        // Opposite direction: elevator must finish current run, then come to pickup
-        return 2 * distance;
+        return 2 * distance + 1;
     }
 }

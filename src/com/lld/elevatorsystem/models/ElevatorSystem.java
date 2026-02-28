@@ -41,8 +41,11 @@ public class ElevatorSystem {
     }
 
     /**
-     * Assigns the best elevator to the request and processes the ride.
-     * Similar to ParkingLot.parkVehicle() — synchronous, immediate result.
+     * Assigns the best elevator and queues the request.
+     * Does NOT move the elevator — returns instantly so the panel can display
+     * "Go to E1" without waiting.
+     *
+     * Call dispatchElevators() to actually move the elevators.
      */
     public synchronized ElevatorRequest requestElevator(Person person, int sourceFloor, int destinationFloor) {
         if (sourceFloor < 0 || sourceFloor > totalFloors ||
@@ -63,16 +66,20 @@ public class ElevatorSystem {
         }
 
         request.assignElevator(selected);
-        selected.processRequest(request);
+        selected.addRequest(request);
         return request;
     }
 
     /**
-     * Example output:
-     * === Tech Tower Elevator System ===
-     *   Elevator E1: Floor 0, IDLE, Passengers: 0/8
-     *   Elevator E2: Floor 0, IDLE, Passengers: 0/8
+     * Dispatches all elevators to process their queued requests.
+     * Each elevator picks up all assigned passengers and delivers them.
      */
+    public synchronized void dispatchElevators() {
+        for (Elevator elevator : elevators) {
+            elevator.processPendingRequests();
+        }
+    }
+
     public String getStatusDisplay() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== ").append(buildingName).append(" Elevator System ===\n");
@@ -82,15 +89,7 @@ public class ElevatorSystem {
         return sb.toString();
     }
 
-    public String getBuildingName() {
-        return buildingName;
-    }
-
-    public int getTotalFloors() {
-        return totalFloors;
-    }
-
-    public List<Elevator> getElevators() {
-        return new ArrayList<>(elevators);
-    }
+    public String getBuildingName() { return buildingName; }
+    public int getTotalFloors() { return totalFloors; }
+    public List<Elevator> getElevators() { return new ArrayList<>(elevators); }
 }

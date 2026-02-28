@@ -15,9 +15,9 @@ classDiagram
         -ElevatorSelectionStrategy selectionStrategy
         +getInstance(String, int) ElevatorSystem$
         +requestElevator(Person, int, int) ElevatorRequest
+        +dispatchElevators() void
         +addElevator(Elevator) void
         +setSelectionStrategy(ElevatorSelectionStrategy) void
-        +getStatusDisplay() String
     }
 
     class Elevator {
@@ -27,11 +27,14 @@ classDiagram
         -ElevatorState state
         -Direction direction
         -int passengerCount
-        +processRequest(ElevatorRequest) void
+        -List~ElevatorRequest~ pendingRequests
+        +addRequest(ElevatorRequest) void
+        +processPendingRequests() void
+        +hasPendingPickupAt(int) boolean
         +canServe(int, Direction) boolean
+        +isAvailable() boolean
         +getDistanceTo(int) int
         +setMaintenance(boolean) void
-        +isAvailable() boolean
     }
 
     class ElevatorRequest {
@@ -64,6 +67,11 @@ classDiagram
         +selectElevator(List~Elevator~, int, Direction) Elevator
     }
 
+    class SmartElevatorStrategy {
+        +selectElevator(List~Elevator~, int, Direction) Elevator
+        -calculateCost(Elevator, int, Direction) int
+    }
+
     class Direction {
         <<enumeration>>
         UP
@@ -83,12 +91,15 @@ classDiagram
     ElevatorSystem --> ElevatorSelectionStrategy
     ElevatorSystem ..> ElevatorRequest : creates
 
+    Elevator "1" o-- "*" ElevatorRequest : pending queue
+
     ElevatorRequest --> Person
     ElevatorRequest --> Elevator : assigned to
 
     FloorPanel ..> ElevatorSystem : uses
 
     NearestElevatorStrategy ..|> ElevatorSelectionStrategy
+    SmartElevatorStrategy ..|> ElevatorSelectionStrategy
 
     Elevator --> ElevatorState
     Elevator --> Direction
@@ -103,10 +114,11 @@ classDiagram
 |--------------|------|-------------|
 | `ElevatorSystem → Elevator` | Composition (1 to Many) | System owns elevators |
 | `ElevatorSystem → ElevatorSelectionStrategy` | Dependency | Uses selection algorithm |
+| `Elevator → ElevatorRequest` | Aggregation (pending queue) | Elevator holds queued requests |
 | `ElevatorRequest → Person` | Association | Request belongs to a person |
 | `ElevatorRequest → Elevator` | Association | Request assigned to an elevator |
 | `FloorPanel → ElevatorSystem` | Dependency | Keypad delegates to system |
-| `NearestElevatorStrategy → ElevatorSelectionStrategy` | Implementation | Implements interface |
+| `SmartElevatorStrategy → ElevatorSelectionStrategy` | Implementation | Implements interface |
 
 ---
 
@@ -124,11 +136,13 @@ com.lld.elevatorsystem
 ├── enums/        (Direction, ElevatorState)
 ├── models/       (Person, Elevator, ElevatorRequest, ElevatorSystem)
 ├── panels/       (FloorPanel — destination dispatch keypad)
-└── strategy/     (ElevatorSelectionStrategy, NearestElevatorStrategy)
+└── strategy/     (ElevatorSelectionStrategy, NearestElevatorStrategy, SmartElevatorStrategy)
 ```
 
 ---
 
-## Flow Summary
+## Flow Summary (Two-Phase)
 
-**Request:** `FloorPanel` → `ElevatorSystem` → `ElevatorSelectionStrategy` → `Elevator.processRequest()` → pickup → move → dropoff
+**Phase 1 — Assign:** `FloorPanel` → `ElevatorSystem.requestElevator()` → `SmartElevatorStrategy` → `Elevator.addRequest()` → panel shows "Go to E1"
+
+**Phase 2 — Dispatch:** `ElevatorSystem.dispatchElevators()` → `Elevator.processPendingRequests()` → batch pickup → visit destinations → drop off

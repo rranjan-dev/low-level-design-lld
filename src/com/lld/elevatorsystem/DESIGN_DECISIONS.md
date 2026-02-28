@@ -70,23 +70,36 @@ public static synchronized ElevatorSystem getInstance(String buildingName, int t
 
 ---
 
-### 3. Why Synchronous Request Processing?
+### 3. Why Two-Phase Model (Assign → Dispatch)?
 
-**Decision:** `requestElevator()` processes the entire ride synchronously — the elevator moves to source, picks up, moves to destination, and drops off in one call.
+**Decision:** `requestElevator()` only assigns an elevator and queues the request (instant). A separate `dispatchElevators()` call makes elevators actually move.
 
 **Rationale:**
-- **Interview Simplicity**: No simulation loops, no Thread.sleep, no complex async state
-- **Easy to Demonstrate**: Each call produces clear, readable output
-- **Focus on Design**: Shows class relationships and patterns, not async scheduling
+- **Real-world behavior**: In real life, the panel tells you "Go to E3" instantly. You walk to E3 and wait. E3 then arrives, picks up everyone, and visits each destination. It doesn't escort one person end-to-end before looking at the next person.
+- **Batch pickups**: Multiple people at the same floor are grouped into one elevator naturally — the strategy sees pending requests and groups them.
+- **Interview clarity**: Two distinct phases make the flow easy to explain on a whiteboard.
+
+**How it works:**
+```
+Phase 1 — requestElevator():
+  → Strategy picks best elevator (gives cost 0 if it already has pending at same floor)
+  → Request queued via elevator.addRequest()
+  → Returns instantly → panel displays "Go to E1"
+
+Phase 2 — dispatchElevators():
+  → Each elevator processes its pending queue
+  → Moves to source floor, picks up ALL passengers, visits each destination
+```
 
 **Alternative Considered:**
-- Step-by-step simulation with `processMovement()` loop
-- **Rejected:** Adds complexity (TreeSet stops, state machines, timers) that obscures the core design
+- Synchronous single-request model: `requestElevator()` moves the elevator immediately for each person.
+- **Rejected:** This means person 1 rides the elevator alone, then person 2, then person 3 — not how real elevators work.
 
 **Trade-off:**
-- ✅ Simple, linear flow — easy to walk through on whiteboard
-- ✅ Demo output is immediately readable
-- ❌ Doesn't model real-time concurrent movement (mention as enhancement)
+- ✅ Realistic batch behavior (pick up 5 people at once, drop at different floors)
+- ✅ Efficient — one trip serves multiple passengers
+- ✅ Demonstrates strategy pattern well (grouping logic is in the strategy)
+- ❌ Slightly more complex than single-request synchronous model
 
 ---
 
@@ -107,22 +120,21 @@ public static synchronized ElevatorSystem getInstance(String buildingName, int t
 
 ---
 
-### 5. Why Elevator Handles Its Own Movement?
+### 5. Why Elevator Manages Its Own Request Queue?
 
-**Decision:** `Elevator.processRequest()` handles the full lifecycle: move to source, pick up, move to destination, drop off.
+**Decision:** `Elevator` has a `pendingRequests` list and `processPendingRequests()` handles the full batch lifecycle: move to source, pick up all, visit each destination, drop off.
 
 **Rationale:**
-- **Encapsulation**: Movement is an elevator's responsibility, not the system's
-- **Simple Interface**: ElevatorSystem just calls `processRequest()`, doesn't micromanage movement
-- **Single Method**: Easy to understand — one method, one responsibility
+- **Encapsulation**: Movement and passenger management are an elevator's responsibility
+- **Batch processing**: Naturally handles multiple passengers going to different floors in one trip
+- **Simple Interface**: ElevatorSystem just calls `dispatchElevators()`, doesn't micromanage
 
 **Code:**
 ```java
-public synchronized void processRequest(ElevatorRequest request) {
-    moveTo(request.getSourceFloor());       // Go to pickup
-    passengerCount++;                        // Pick up
-    moveTo(request.getDestinationFloor());   // Go to destination
-    passengerCount--;                        // Drop off
+public synchronized void processPendingRequests() {
+    // Group by source floor
+    // For each source: move there, pick up everyone
+    // Visit each destination in order, drop off passengers
 }
 ```
 
@@ -144,28 +156,37 @@ this.direction = sourceFloor < destinationFloor ? Direction.UP : Direction.DOWN;
 
 ---
 
-### 7. Why Sequential Request IDs?
+### 7. Why Passenger Grouping Is in the Strategy, Not the System?
 
-**Decision:** Request IDs use simple counter (REQ-1, REQ-2, ...) instead of UUID.
+**Decision:** `SmartElevatorStrategy` checks `elevator.hasPendingPickupAt(floor)` and gives cost 0 for grouping. The system doesn't have explicit grouping logic.
 
 **Rationale:**
-- **Simplicity**: Easy to understand and remember
-- **Interview Clarity**: No UUID complexity to explain
-- **Sufficient**: Sequential IDs work fine for single-instance system
+- **Strategy's job**: Deciding which elevator is "best" IS the strategy's responsibility
+- **No special code**: Grouping emerges naturally from the cost function — no `groupByFloor()` method needed
+- **Flexibility**: A different strategy could choose NOT to group (e.g., spread load evenly)
 
-**Alternative:** UUID — rejected for interview simplicity.
+---
+
+### 8. Why Capacity Considers Pending Requests?
+
+**Decision:** `isAvailable()` checks `passengerCount + pendingRequests.size() < maxCapacity`.
+
+**Rationale:**
+- Pending passengers haven't boarded yet, but they WILL — the elevator is already assigned to them
+- Without this, an elevator with capacity 5 could get 10 pending requests and be overbooked
+- When pending count reaches capacity, `isAvailable()` returns false and strategy overflows to next elevator
 
 ---
 
 ## Pattern Choices
 
-### 8. Why Not Observer Pattern?
+### 9. Why Not Observer Pattern?
 
 **Decision:** No observer/event system for elevator arrivals.
 
 **Rationale:**
 - Current requirements don't need real-time notifications
-- Synchronous model makes events unnecessary
+- Two-phase model makes events unnecessary
 - Adds complexity without interview value
 
 **When to Add Observer:**
@@ -174,7 +195,7 @@ this.direction = sourceFloor < destinationFloor ? Direction.UP : Direction.DOWN;
 
 ---
 
-### 9. Why Not State Pattern for Elevator?
+### 10. Why Not State Pattern for Elevator?
 
 **Decision:** Elevator state is a simple enum field, not a full State pattern.
 
@@ -191,17 +212,17 @@ this.direction = sourceFloor < destinationFloor ? Direction.UP : Direction.DOWN;
 
 ## Thread Safety Strategy
 
-### 10. Why Synchronized at Two Levels?
+### 11. Why Synchronized at Two Levels?
 
-**Decision:** `synchronized` on both `ElevatorSystem.requestElevator()` and `Elevator.processRequest()`.
+**Decision:** `synchronized` on both `ElevatorSystem.requestElevator()` and `Elevator.processPendingRequests()`.
 
 **Rationale:**
-- **System level**: Prevents two requests from selecting the same elevator simultaneously
-- **Elevator level**: Prevents concurrent modifications to elevator state
+- **System level**: Prevents two requests from selecting the same elevator simultaneously. Ensures pending counts are accurate for capacity checks.
+- **Elevator level**: Prevents concurrent modifications to elevator state during batch processing.
 
 **Trade-off:**
 - ✅ Simple, correct, easy to explain
-- ❌ Lower concurrency (one request processed at a time)
+- ❌ Lower concurrency (assignments are serialized)
 - In production: use finer-grained locks or message queues
 
 ---
@@ -213,18 +234,18 @@ this.direction = sourceFloor < destinationFloor ? Direction.UP : Direction.DOWN;
 | Decision | Chosen | Alternative | Trade-off |
 |----------|--------|------------|-----------|
 | **Singleton** | Simple synchronized | Double-checked locking | Simpler vs Slightly faster |
-| **Synchronous processing** | Yes | Async simulation | Simpler vs More realistic |
+| **Two-phase model** | Assign + Dispatch | Single synchronous call | Realistic vs Simpler |
+| **Grouping in strategy** | Cost-based | Explicit group-by-floor | Elegant vs Obvious |
 | **No Floor class** | Yes | Floor with state | Fewer files vs More extensible |
 | **Strategy pattern** | Yes | Hardcoded selection | Extensible vs Fewer classes |
-| **Simple enum states** | Yes | State pattern | Simpler vs More structured transitions |
-| **Counter IDs** | Yes | UUID | Simpler vs Distributed-safe |
+| **Simple enum states** | Yes | State pattern | Simpler vs More structured |
 
 ---
 
 ## Design Principles Applied
 
-1. **KISS**: Synchronous processing, no simulation loops
+1. **KISS**: Two-phase model is simple to explain; no simulation loops
 2. **YAGNI**: No Floor class, no Observer, no State pattern
 3. **SRP**: Elevator handles movement, System handles dispatch, Strategy handles selection
 4. **OCP**: New selection strategies without modifying existing code
-5. **Encapsulation**: `processRequest()` hides internal movement from the system
+5. **Encapsulation**: `processPendingRequests()` hides internal batch logic from the system
