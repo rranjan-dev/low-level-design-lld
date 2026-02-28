@@ -60,8 +60,8 @@ public void processRequest(ElevatorRequest request) {
 **Do this**: Synchronous request handling — each call completes the full ride
 
 ### 4. Over-Engineering the Floor
-**Don't do**: Full Floor class with request queues, up/down button state
-**Do this**: Floors are just integers. FloorPanel is a thin delegation layer.
+**Don't do**: Full Floor class with request queues, complex button state
+**Do this**: Floors are just integers. FloorPanel is a destination dispatch keypad — thin delegation layer.
 
 ### 5. Complex Threading
 **Don't do**: ReentrantLock, ReadWriteLock, ConcurrentHashMap
@@ -72,7 +72,7 @@ public void processRequest(ElevatorRequest request) {
 ## Key Talking Points
 
 ### When Explaining Singleton:
-> "I'm using Singleton because one building has one elevator controller. All floor panels share the same system instance."
+> "I'm using Singleton because one building has one elevator controller. All floor keypads share the same system instance."
 
 ### When Explaining Strategy Pattern:
 > "I used Strategy for elevator selection so we can swap algorithms — nearest elevator, least loaded, zone-based — without changing the core system."

@@ -43,7 +43,7 @@ java -cp out com.lld.elevatorsystem.ElevatorSystemDemo
 | `Elevator` | Single elevator car | `processRequest()`, `canServe()` |
 | `ElevatorRequest` | Ride record (source → dest) | Constructor (auto-computes direction) |
 | `Person` | Passenger | — |
-| `FloorPanel` | UP/DOWN buttons on a floor | `requestElevator()` |
+| `FloorPanel` | Numeric keypad on each floor (destination dispatch) | `requestElevator()` |
 | `ElevatorSelectionStrategy` | Selection algorithm interface | `selectElevator()` |
 | `NearestElevatorStrategy` | Simple: nearest available | `selectElevator()` |
 | `SmartElevatorStrategy` | Cost-based: considers direction + position | `selectElevator()` |
@@ -111,12 +111,13 @@ system.setSelectionStrategy(new NearestElevatorStrategy());
 system.addElevator(new Elevator("E1", 8));
 system.addElevator(new Elevator("E2", 8));
 
-// 3. Create floor panel
+// 3. Create floor keypad
 FloorPanel ground = new FloorPanel(0);
 
-// 4. Request elevator
+// 4. Passenger enters destination on keypad → system assigns elevator
 Person alice = new Person("P1", "Alice");
 ElevatorRequest request = ground.requestElevator(alice, 5);
+// Panel displays: "Alice → Go to E1"
 
 // 5. Check status
 System.out.println(system.getStatusDisplay());
@@ -201,9 +202,11 @@ System.out.println(system.getStatusDisplay());
 ## Core Flow (Remember This)
 
 ```
-REQUEST:  Person → FloorPanel.requestElevator(person, destFloor)
-              → ElevatorSystem.requestElevator(person, source, dest)
-              → ElevatorSelectionStrategy.selectElevator()
+REQUEST:  Person enters destination on FloorPanel keypad (e.g. presses 1, 5 for floor 15)
+              → FloorPanel.requestElevator(person, 15)
+              → ElevatorSystem.requestElevator(person, currentFloor, 15)
+              → SmartElevatorStrategy.selectElevator() → picks lowest-cost elevator
+              → Panel displays "Go to E3"
               → Elevator.processRequest()
                   → moveTo(sourceFloor)  → pick up
                   → moveTo(destFloor)    → drop off

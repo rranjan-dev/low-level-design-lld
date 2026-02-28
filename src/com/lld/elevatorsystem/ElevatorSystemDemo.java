@@ -19,7 +19,7 @@ public class ElevatorSystemDemo {
 
         System.out.println(system.getStatusDisplay());
 
-        // Floor panels
+        // Floor keypads (destination dispatch — passengers enter floor number)
         FloorPanel ground = new FloorPanel(0);
         FloorPanel floor15 = new FloorPanel(15);
         FloorPanel floor25 = new FloorPanel(25);

@@ -50,6 +50,7 @@ classDiagram
     }
 
     class FloorPanel {
+        <<destination dispatch keypad>>
         -int floorNumber
         +requestElevator(Person, int) ElevatorRequest
     }
@@ -104,7 +105,7 @@ classDiagram
 | `ElevatorSystem → ElevatorSelectionStrategy` | Dependency | Uses selection algorithm |
 | `ElevatorRequest → Person` | Association | Request belongs to a person |
 | `ElevatorRequest → Elevator` | Association | Request assigned to an elevator |
-| `FloorPanel → ElevatorSystem` | Dependency | Panel delegates to system |
+| `FloorPanel → ElevatorSystem` | Dependency | Keypad delegates to system |
 | `NearestElevatorStrategy → ElevatorSelectionStrategy` | Implementation | Implements interface |
 
 ---
@@ -122,7 +123,7 @@ classDiagram
 com.lld.elevatorsystem
 ├── enums/        (Direction, ElevatorState)
 ├── models/       (Person, Elevator, ElevatorRequest, ElevatorSystem)
-├── panels/       (FloorPanel)
+├── panels/       (FloorPanel — destination dispatch keypad)
 └── strategy/     (ElevatorSelectionStrategy, NearestElevatorStrategy)
 ```
 
