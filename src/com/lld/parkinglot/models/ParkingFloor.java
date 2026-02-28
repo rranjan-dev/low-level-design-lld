@@ -69,16 +69,23 @@ public class ParkingFloor {
                getAvailableCount(SpotType.LARGE);
     }
 
+    /**
+     * Returns floor status display.
+     * Example output: "  Floor 1: SMALL=2/2  MEDIUM=3/3  LARGE=1/1"
+     * Format: Floor {number}: SMALL={available}/{total}  MEDIUM={available}/{total}  LARGE={available}/{total}
+     */
     public String getStatusDisplay() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("  Floor ").append(floorNumber).append(": ");
-        sb.append("SMALL=").append(getAvailableCount(SpotType.SMALL))
-          .append("/").append(spotsByType.get(SpotType.SMALL).size()).append("  ");
-        sb.append("MEDIUM=").append(getAvailableCount(SpotType.MEDIUM))
-          .append("/").append(spotsByType.get(SpotType.MEDIUM).size()).append("  ");
-        sb.append("LARGE=").append(getAvailableCount(SpotType.LARGE))
-          .append("/").append(spotsByType.get(SpotType.LARGE).size());
-        return sb.toString();
+        int smallAvailable = getAvailableCount(SpotType.SMALL);
+        int smallTotal = spotsByType.get(SpotType.SMALL).size();
+        int mediumAvailable = getAvailableCount(SpotType.MEDIUM);
+        int mediumTotal = spotsByType.get(SpotType.MEDIUM).size();
+        int largeAvailable = getAvailableCount(SpotType.LARGE);
+        int largeTotal = spotsByType.get(SpotType.LARGE).size();
+        
+        return "  Floor " + floorNumber + ": " +
+               "SMALL=" + smallAvailable + "/" + smallTotal + "  " +
+               "MEDIUM=" + mediumAvailable + "/" + mediumTotal + "  " +
+               "LARGE=" + largeAvailable + "/" + largeTotal;
     }
 
     public int getFloorNumber() {

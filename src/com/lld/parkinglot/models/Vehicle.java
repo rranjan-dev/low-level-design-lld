@@ -19,6 +19,10 @@ public class Vehicle {
         return vehicleType;
     }
 
+    /**
+     * Returns vehicle details as string.
+     * Example output: "CAR [MH-02-5678]" or "MOTORCYCLE [KA-01-1234]"
+     */
     @Override
     public String toString() {
         return vehicleType + " [" + licensePlate + "]";

@@ -21,8 +21,11 @@ public class ParkingTicket {
         this.entryTime = LocalDateTime.now();
     }
 
-    public void markExit(double charges) {
+    public void markExitTime() {
         this.exitTime = LocalDateTime.now();
+    }
+
+    public void setCharges(double charges) {
         this.charges = charges;
     }
 
@@ -50,16 +53,22 @@ public class ParkingTicket {
         return charges;
     }
 
+    /**
+     * Returns ticket details as string.
+     * Example output (before exit):
+     *   "Ticket[TKT-1] CAR [MH-02-5678] @ Spot F1-M1 | Entry: 2026-02-27 10:30:45"
+     * 
+     * Example output (after exit):
+     *   "Ticket[TKT-1] CAR [MH-02-5678] @ Spot F1-M1 | Entry: 2026-02-27 10:30:45 | Exit: 2026-02-27 12:30:45 | Charges: $40.00"
+     */
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Ticket[").append(ticketId).append("] ");
-        sb.append(vehicle).append(" @ Spot ").append(spot.getSpotId());
-        sb.append(" | Entry: ").append(entryTime.format(FORMATTER));
+        String result = "Ticket[" + ticketId + "] " + vehicle + " @ Spot " + spot.getSpotId();
+        result += " | Entry: " + entryTime.format(FORMATTER);
         if (exitTime != null) {
-            sb.append(" | Exit: ").append(exitTime.format(FORMATTER));
-            sb.append(" | Charges: $").append(String.format("%.2f", charges));
+            result += " | Exit: " + exitTime.format(FORMATTER);
+            result += " | Charges: $" + String.format("%.2f", charges);
         }
-        return sb.toString();
+        return result;
     }
 }

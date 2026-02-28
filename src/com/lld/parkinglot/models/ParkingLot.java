@@ -41,7 +41,7 @@ public class ParkingLot {
     public synchronized ParkingTicket parkVehicle(Vehicle vehicle) {
         for (ParkingFloor floor : floors) {
             ParkingSpot spot = floor.findAvailableSpot(vehicle.getVehicleType());
-            if (spot != null) {
+            if (spot != null && spot.isAvailable()) {
                 spot.assignVehicle(vehicle);
                 return new ParkingTicket(vehicle, spot);
             }
@@ -53,12 +53,21 @@ public class ParkingLot {
         if (pricingStrategy == null) {
             throw new IllegalStateException("Pricing strategy not set");
         }
-        ticket.getSpot().removeVehicle();
-        double charges = pricingStrategy.calculateCharge(ticket);
-        ticket.markExit(charges);
+        ticket.markExitTime();  // Mark exit time first
+        ticket.getSpot().removeVehicle();  // Then free the spot
+        double charges = pricingStrategy.calculateCharge(ticket);  // Calculate charges using recorded exit time
+        ticket.setCharges(charges);  // Store charges
         return charges;
     }
 
+    /**
+     * Returns status display showing availability on each floor.
+     * Example output:
+     * === City Center Parking Status ===
+     *   Floor 1: SMALL=2/2  MEDIUM=3/3  LARGE=1/1
+     *   Floor 2: SMALL=1/1  MEDIUM=2/2  LARGE=2/2
+     *   Total available: 11
+     */
     public String getStatusDisplay() {
         String result = "=== " + name + " Status ===\n";
         int total = 0;

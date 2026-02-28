@@ -2,7 +2,6 @@ package com.lld.parkinglot.pricing;
 
 import com.lld.parkinglot.enums.VehicleType;
 import com.lld.parkinglot.models.ParkingTicket;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,10 +17,10 @@ public class HourlyPricingStrategy implements PricingStrategy {
 
     @Override
     public double calculateCharge(ParkingTicket ticket) {
-        LocalDateTime entry = ticket.getEntryTime();
-        LocalDateTime exit = LocalDateTime.now();
-        
-        long hours = java.time.temporal.ChronoUnit.HOURS.between(entry, exit);
+        long hours = java.time.temporal.ChronoUnit.HOURS.between(
+            ticket.getEntryTime(), 
+            ticket.getExitTime()
+        );
         if (hours < 1) {
             hours = 1; // minimum 1 hour
         }
