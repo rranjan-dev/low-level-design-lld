@@ -16,7 +16,7 @@ public class ParkingSpot {
 
     public synchronized void assignVehicle(Vehicle vehicle) {
         if (!available) {
-            throw new IllegalStateException("Spot " + spotId + " is already occupied");
+            throw new IllegalStateException("Spot already occupied");
         }
         this.parkedVehicle = vehicle;
         this.available = false;
@@ -24,7 +24,7 @@ public class ParkingSpot {
 
     public synchronized Vehicle removeVehicle() {
         if (available) {
-            throw new IllegalStateException("Spot " + spotId + " is already empty");
+            throw new IllegalStateException("Spot is empty");
         }
         Vehicle vehicle = this.parkedVehicle;
         this.parkedVehicle = null;
@@ -46,10 +46,5 @@ public class ParkingSpot {
 
     public Vehicle getParkedVehicle() {
         return parkedVehicle;
-    }
-
-    @Override
-    public String toString() {
-        return spotId + " (" + spotType + ")" + (available ? " [FREE]" : " [OCCUPIED by " + parkedVehicle + "]");
     }
 }

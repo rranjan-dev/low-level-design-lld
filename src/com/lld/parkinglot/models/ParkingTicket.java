@@ -2,10 +2,10 @@ package com.lld.parkinglot.models;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 public class ParkingTicket {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static int ticketCounter = 1;
 
     private final String ticketId;
     private final Vehicle vehicle;
@@ -14,15 +14,11 @@ public class ParkingTicket {
     private LocalDateTime exitTime;
     private double charges;
 
-    private ParkingTicket(Vehicle vehicle, ParkingSpot spot) {
-        this.ticketId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    public ParkingTicket(Vehicle vehicle, ParkingSpot spot) {
+        this.ticketId = "TKT-" + ticketCounter++;
         this.vehicle = vehicle;
         this.spot = spot;
         this.entryTime = LocalDateTime.now();
-    }
-
-    public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
-        return new ParkingTicket(vehicle, spot);
     }
 
     public void markExit(double charges) {
