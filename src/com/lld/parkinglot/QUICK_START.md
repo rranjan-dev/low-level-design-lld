@@ -1,10 +1,30 @@
 # Quick Start Guide - Parking Lot System
 
-A quick reference guide for understanding and using the Parking Lot System.
+---
+
+## Problem Statement
+
+> Design a Parking Lot Management System that can manage multiple floors, each with different types of parking spots. The system should handle vehicle entry/exit, automatic spot assignment, and flexible pricing.
+
+### Functional Requirements
+
+1. The parking lot has **multiple floors**, each with **multiple spots**
+2. Three spot types: **SMALL** (motorcycle), **MEDIUM** (car), **LARGE** (truck)
+3. A vehicle can park in its matching spot size **or any larger spot** (fallback)
+4. System issues a **ticket on entry** with entry time, spot, and vehicle details
+5. System calculates **charges on exit** based on duration and vehicle type
+6. **Multiple entry/exit gates** can operate simultaneously
+7. Real-time **availability tracking** per floor and per spot type
+
+### Non-Functional Requirements
+
+1. **Thread-safe** — multiple gates operating concurrently without race conditions
+2. **Extensible** — easy to add new vehicle types, spot types, or pricing models
+3. **Simple** — easy to understand, remember, and code in an interview
 
 ---
 
-## 🚀 Quick Compile & Run
+## Quick Compile & Run
 
 ```bash
 # Compile
@@ -166,28 +186,67 @@ double charges = ticket.getCharges(); // After exit
 
 ---
 
-## 🐛 Troubleshooting
+## Core Flow (Remember This)
 
-### "No available spot"
-- Check if spots exist for that vehicle type
-- Verify spots are not all occupied
-- Check if larger spots are available (fallback)
+```
+ENTRY:  Vehicle → EntryPanel.issueTicket() → ParkingLot.parkVehicle()
+            → ParkingFloor.findAvailableSpot() → ParkingSpot.assignVehicle()
+            → ParkingTicket created and returned
 
-### "Pricing strategy not configured"
-- Call `lot.setPricingStrategy(new HourlyPricingStrategy())` before parking
-
-### "Spot already occupied"
-- Race condition: two threads tried to assign same spot
-- Should not happen with synchronized methods
+EXIT:   Ticket → ExitPanel.processExit() → ParkingLot.unparkVehicle()
+            → ticket.markExitTime() → spot.removeVehicle()
+            → PricingStrategy.calculateCharge() → charge returned
+```
 
 ---
 
-## 📚 Next Steps
+## Interview-Ready Features
 
-1. Read [README.md](README.md) for full documentation
-2. Check [CLASS_DIAGRAM.md](CLASS_DIAGRAM.md) for class relationships
-3. Explore the code in `src/com/lld/parkinglot/`
+### 1. Smart Spot Allocation with Fallback
+Tries exact match first, then falls back to larger spots. Shows you think about real-world constraints.
+```
+MOTORCYCLE → try SMALL → try MEDIUM → try LARGE
+CAR        → try MEDIUM → try LARGE
+TRUCK      → try LARGE only
+```
+
+### 2. Enum with Behavior
+`VehicleType` has a `getRequiredSpotType()` method — a common interview pattern.
+```java
+public SpotType getRequiredSpotType() {
+    if (this == MOTORCYCLE) return SpotType.SMALL;
+    if (this == CAR) return SpotType.MEDIUM;
+    return SpotType.LARGE;
+}
+```
+
+### 3. Thread Safety at Two Levels
+- **Coarse-grained**: `synchronized` on `ParkingLot.parkVehicle()` / `unparkVehicle()`
+- **Fine-grained**: `synchronized` on `ParkingSpot.assignVehicle()` / `removeVehicle()`
+
+### 4. Strategy Pattern for Pricing
+Swap pricing without touching core logic. Easy to extend:
+```java
+lot.setPricingStrategy(new HourlyPricingStrategy());
+// Later: lot.setPricingStrategy(new FlatRatePricingStrategy());
+```
+
+### 5. Boundary Separation (Panels)
+EntryPanel/ExitPanel are thin wrappers — keep I/O separate from business logic. Shows clean architecture thinking.
+
+### 6. Status Display
+Real-time availability per floor per type. Shows you think about observability.
+```
+Floor 1: SMALL=2/2  MEDIUM=1/3  LARGE=0/1
+```
 
 ---
 
-**Happy Coding! 🚀**
+## Possible Extensions (Mention If Asked)
+
+- **Electric vehicle spots** → new SpotType + VehicleType
+- **Handicap/reserved spots** → priority flag on ParkingSpot
+- **Surge/weekend pricing** → new PricingStrategy implementation
+- **Payment system** → separate Payment class with multiple methods
+- **Sensor integration** → ParkingSpot gets `updateStatus()` from hardware
+- **Multiple parking lots** → remove Singleton, use registry pattern

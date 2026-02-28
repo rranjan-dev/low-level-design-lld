@@ -1,6 +1,25 @@
 # Quick Start Guide - Elevator System
 
-A quick reference guide for understanding and using the Elevator System.
+---
+
+## Problem Statement
+
+> Design an Elevator System for a multi-story building with multiple elevators. The system should efficiently assign elevators to passenger requests, manage elevator movement, and handle capacity and maintenance constraints.
+
+### Functional Requirements
+
+1. Building has **multiple floors** (configurable) and **multiple elevators**
+2. A passenger can **request an elevator** from any floor to any other floor
+3. System **selects the best elevator** based on a pluggable strategy (e.g., nearest)
+4. Each elevator has a **maximum passenger capacity**
+5. Elevators can be put into **maintenance mode** (taken out of service)
+6. System provides **real-time status** of all elevators (floor, state, passengers)
+
+### Non-Functional Requirements
+
+1. **Thread-safe** — concurrent requests don't corrupt elevator state
+2. **Extensible** — easy to plug in new elevator selection algorithms
+3. **Simple** — easy to understand, remember, and code in an interview
 
 ---
 
@@ -149,11 +168,78 @@ System.out.println(system.getStatusDisplay());
 
 ---
 
-## Important Notes
+## Core Flow (Remember This)
 
-1. **Synchronous Processing**: Each request completes the full ride immediately
-2. **Thread Safety**: requestElevator() and processRequest() are synchronized
-3. **Capacity Check**: Elevator rejects requests when at maxCapacity
-4. **Maintenance**: Maintenance elevators are skipped by the selection strategy
-5. **Direction Auto-Computed**: sourceFloor < destinationFloor → UP, otherwise → DOWN
-6. **Request Flow**: select elevator → move to source → pick up → move to destination → drop off
+```
+REQUEST:  Person → FloorPanel.requestElevator(person, destFloor)
+              → ElevatorSystem.requestElevator(person, source, dest)
+              → ElevatorSelectionStrategy.selectElevator()
+              → Elevator.processRequest()
+                  → moveTo(sourceFloor)  → pick up
+                  → moveTo(destFloor)    → drop off
+              → ElevatorRequest returned
+```
+
+---
+
+## Interview-Ready Features
+
+### 1. Strategy Pattern for Elevator Selection
+The core interview differentiator. Selection algorithm is pluggable:
+```java
+system.setSelectionStrategy(new NearestElevatorStrategy());
+// Later: system.setSelectionStrategy(new LeastLoadedStrategy());
+```
+
+### 2. NearestElevatorStrategy Logic
+Two-pass selection — shows you think about optimization:
+1. **First pass**: elevators going in the same direction that haven't passed the floor
+2. **Fallback**: any nearest available elevator
+
+### 3. Elevator.canServe() — Smart Availability Check
+Considers state, capacity, direction, and position:
+```java
+public boolean canServe(int floor, Direction dir) {
+    if (state == MAINTENANCE) return false;     // Out of service
+    if (passengerCount >= maxCapacity) return false; // Full
+    if (state == IDLE) return true;              // Free to serve
+    // Moving same direction and floor is ahead
+    if (direction == dir) {
+        if (dir == UP && currentFloor <= floor) return true;
+        if (dir == DOWN && currentFloor >= floor) return true;
+    }
+    return false;
+}
+```
+
+### 4. Auto-Computed Direction
+No room for caller error — direction is derived from floors:
+```java
+this.direction = sourceFloor < destinationFloor ? Direction.UP : Direction.DOWN;
+```
+
+### 5. Maintenance Mode
+One-liner to take an elevator out of service. Strategy automatically skips it:
+```java
+elevator.setMaintenance(true);  // canServe() now returns false
+```
+
+### 6. Thread Safety at Two Levels
+- **System level**: `synchronized` on `requestElevator()` — prevents conflicting assignments
+- **Elevator level**: `synchronized` on `processRequest()` — prevents state corruption
+
+### 7. Encapsulated Movement
+`Elevator.processRequest()` handles the full lifecycle internally — the system just says "serve this request" and doesn't micromanage floor-by-floor movement.
+
+---
+
+## Possible Extensions (Mention If Asked)
+
+- **LeastLoadedStrategy** → pick elevator with fewest current passengers
+- **ZoneBasedStrategy** → assign elevator ranges to floor zones (1-5, 6-10)
+- **Priority floors** → ground floor gets higher weight in selection
+- **Express elevators** → skip intermediate floors, serve only certain ranges
+- **Door management** → OPENING, OPEN, CLOSING states for the elevator
+- **Weight-based capacity** → replace passenger count with weight sensor
+- **Emergency stop** → immediate halt, override all requests
+- **Request queuing** → async model with event-driven dispatch
