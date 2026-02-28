@@ -1,6 +1,6 @@
 # Parking Lot System - Low Level Design (LLD)
 
-A comprehensive, production-ready implementation of a Parking Lot Management System designed for interview preparation. This system demonstrates object-oriented design principles, design patterns, and thread-safe concurrent operations.
+A simplified, interview-ready implementation of a Parking Lot Management System. This system demonstrates object-oriented design principles, design patterns, and thread-safe concurrent operations.
 
 ## 📋 Table of Contents
 
@@ -14,7 +14,6 @@ A comprehensive, production-ready implementation of a Parking Lot Management Sys
 - [How to Run](#how-to-run)
 - [Code Walkthrough](#code-walkthrough)
 - [Interview Talking Points](#interview-talking-points)
-- [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -25,7 +24,7 @@ This Parking Lot System manages vehicle parking across multiple floors with diff
 - **Separation of Concerns**: Clear boundaries between models, panels, and pricing logic
 - **Thread Safety**: Synchronized operations for concurrent access
 - **Extensibility**: Easy to add new vehicle types, spot types, or pricing strategies
-- **SOLID Principles**: Each class has a single responsibility
+- **Simplicity**: Clean, easy-to-understand code for interview preparation
 
 ---
 
@@ -39,13 +38,12 @@ This Parking Lot System manages vehicle parking across multiple floors with diff
 4. **Ticket System**: Issues a ticket on entry with entry time, spot assignment, and vehicle details
 5. **Pricing**: Calculates charges on exit based on duration and vehicle type
 6. **Availability Tracking**: Real-time tracking of available spots per floor and per type
-7. **Multiple Gates**: Support for multiple entry and exit panels operating concurrently
 
 ### Non-Functional Requirements
 
 1. **Thread Safety**: Multiple gates can operate simultaneously without race conditions
 2. **Extensibility**: Easy to add new vehicle types, spot types, or pricing models
-3. **Maintainability**: Clean code structure following SOLID principles
+3. **Simplicity**: Code should be easy to understand and remember for interviews
 
 ---
 
@@ -54,54 +52,23 @@ This Parking Lot System manages vehicle parking across multiple floors with diff
 ### High-Level Architecture
 
 ```
-┌─────────────┐
-│   Driver    │
-└──────┬──────┘
-       │
-       ├─────────────────┐
-       │                 │
-       ▼                 ▼
-┌─────────────┐    ┌─────────────┐
-│ EntryPanel  │    │  ExitPanel  │
-└──────┬──────┘    └──────┬───────┘
-       │                 │
-       └────────┬────────┘
-                │
-                ▼
-         ┌──────────────┐
-         │  ParkingLot  │  (Singleton)
-         │  (Orchestrator) │
-         └──────┬───────┘
-                │
-        ┌───────┼───────┐
-        │       │       │
-        ▼       ▼       ▼
-   ┌────────┐ ┌────────┐ ┌──────────────┐
-   │ Floor 1 │ │ Floor 2 │ │ PricingStrategy│
-   └────┬───┘ └────┬───┘ └───────┬────────┘
-        │          │             │
-        └──────┬───┘             │
-               │                 │
-               ▼                 ▼
-         ┌──────────┐    ┌──────────────────┐
-         │  Spots   │    │ HourlyPricing    │
-         └──────────┘    └──────────────────┘
+Driver → EntryPanel/ExitPanel → ParkingLot (Singleton)
+                                  ↓
+                          ParkingFloor → ParkingSpot
+                                  ↓
+                          PricingStrategy (for charges)
 ```
 
 ### Data Flow
 
 **Entry Flow:**
 ```
-Driver → EntryPanel → ParkingLot → ParkingFloor → ParkingSpot
-                                    ↓
-                              ParkingTicket (created)
+Driver → EntryPanel → ParkingLot → ParkingFloor → ParkingSpot → ParkingTicket
 ```
 
 **Exit Flow:**
 ```
-Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
-                              ↓
-                        PricingStrategy → Calculate Charges
+Driver → ExitPanel → ParkingLot → markExitTime() → removeVehicle() → calculateCharge() → setCharges()
 ```
 
 ---
@@ -116,10 +83,11 @@ Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
 - `MOTORCYCLE` → requires SMALL spot
 - `CAR` → requires MEDIUM spot  
 - `TRUCK` → requires LARGE spot
+- `getRequiredSpotType()` method returns required spot type
 
 **`SpotType`** - Defines parking spot sizes
-- `SMALL`, `MEDIUM`, `LARGE` with size ranking (1, 2, 3)
-- `canFit()` method enables fallback to larger spots
+- `SMALL`, `MEDIUM`, `LARGE`
+- Simple enum (no methods)
 
 #### 2. **Models**
 
@@ -133,18 +101,19 @@ Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
 - Tracks: `spotId`, `spotType`, `available`, `parkedVehicle`
 
 **`ParkingFloor`**
-- Manages spots grouped by type using `EnumMap<SpotType, List<ParkingSpot>>`
-- `findAvailableSpot()` implements smart search: exact match first, then fallback to larger spots
+- Manages spots grouped by type using `HashMap<SpotType, List<ParkingSpot>>`
+- `findAvailableSpot()` implements search: exact match first, then fallback to larger spots
 - Provides availability counts per type
 
 **`ParkingTicket`**
-- Factory method pattern (`issue()`)
-- Auto-generates UUID ticket ID
+- Direct constructor (simplified)
+- Auto-generates ticket ID using counter (TKT-1, TKT-2, ...)
 - Tracks: `entryTime`, `exitTime`, `charges`, `vehicle`, `spot`
+- Methods: `markExitTime()`, `setCharges()`
 
 **`ParkingLot`** (Singleton)
 - Central orchestrator for all parking operations
-- Double-checked locking for thread-safe initialization
+- Simple synchronized method for thread-safe initialization
 - Methods: `parkVehicle()`, `unparkVehicle()`, `getStatusDisplay()`
 
 #### 3. **Panels** (Boundary Layer)
@@ -152,10 +121,12 @@ Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
 **`EntryPanel`**
 - Thin wrapper that delegates to `ParkingLot.parkVehicle()`
 - Issues tickets to drivers
+- Not stored in ParkingLot (dependency only)
 
 **`ExitPanel`**
 - Processes exit requests
 - Delegates to `ParkingLot.unparkVehicle()`
+- Not stored in ParkingLot (dependency only)
 
 #### 4. **Pricing**
 
@@ -165,8 +136,9 @@ Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
 
 **`HourlyPricingStrategy`**
 - Implements hourly pricing with different rates per vehicle type
-- Charges per started hour (ceiling function)
+- Uses `ChronoUnit.HOURS.between()` for duration calculation
 - Rates: Motorcycle $10/hr, Car $20/hr, Truck $30/hr
+- Minimum 1 hour charge
 
 ---
 
@@ -175,16 +147,12 @@ Driver → ExitPanel → ParkingLot → ParkingSpot (freed)
 ### 1. **Singleton Pattern**
 **Where:** `ParkingLot` class  
 **Why:** Only one parking lot instance should exist in the system  
-**Implementation:** Double-checked locking for thread-safe lazy initialization
+**Implementation:** Simple synchronized method
 
 ```java
-public static ParkingLot getInstance(String name) {
+public static synchronized ParkingLot getInstance(String name) {
     if (instance == null) {
-        synchronized (ParkingLot.class) {
-            if (instance == null) {
-                instance = new ParkingLot(name);
-            }
-        }
+        instance = new ParkingLot(name);
     }
     return instance;
 }
@@ -198,17 +166,6 @@ public static ParkingLot getInstance(String name) {
 ```java
 // Easy to swap pricing strategies
 lot.setPricingStrategy(new HourlyPricingStrategy());
-lot.setPricingStrategy(new FlatRatePricingStrategy()); // Future enhancement
-```
-
-### 3. **Factory Method Pattern**
-**Where:** `ParkingTicket.issue()`  
-**Why:** Centralizes ticket creation, provides meaningful method name, enables future validation/logging
-
-```java
-public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
-    return new ParkingTicket(vehicle, spot);
-}
 ```
 
 ---
@@ -235,8 +192,8 @@ public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
 - Configurable rates per vehicle type
 - Minimum charge (1 hour) even for quick exits
 
-### 5. **Comprehensive Ticket System**
-- Unique ticket IDs (UUID-based)
+### 5. **Simple Ticket System**
+- Sequential ticket IDs (TKT-1, TKT-2, ...)
 - Tracks entry/exit times
 - Records final charges
 - Links vehicle to assigned spot
@@ -246,7 +203,7 @@ public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
 ## 📁 Project Structure
 
 ```
-low-level-design/
+low-level-design-lld/
 └── src/
     └── com/
         └── lld/
@@ -275,23 +232,15 @@ low-level-design/
 
 ### Prerequisites
 - Java JDK 8 or higher
-- Terminal/Command Prompt
 
 ### Compilation
 
 ```bash
 # Navigate to project root
-cd /Users/rranjan/Documents/MY-REPOSITORIES/personal/low-level-design
+cd /Users/rranjan/Documents/MY-REPOSITORIES/personal/low-level-design-lld
 
 # Compile all Java files
 javac -d out src/com/lld/parkinglot/**/*.java src/com/lld/parkinglot/*.java
-
-# Or compile individually
-javac -d out src/com/lld/parkinglot/enums/*.java \
-             src/com/lld/parkinglot/models/*.java \
-             src/com/lld/parkinglot/panels/*.java \
-             src/com/lld/parkinglot/pricing/*.java \
-             src/com/lld/parkinglot/ParkingLotDemo.java
 ```
 
 ### Execution
@@ -305,17 +254,17 @@ java -cp out com.lld.parkinglot.ParkingLotDemo
 
 ```
 === City Center Parking Status ===
-  Floor 1: SMALL=2/2  MEDIUM=3/3  LARGE=1/1  
-  Floor 2: SMALL=1/1  MEDIUM=2/2  LARGE=2/2  
-  Total available spots: 11
+  Floor 1: SMALL=2/2  MEDIUM=3/3  LARGE=1/1
+  Floor 2: SMALL=1/1  MEDIUM=2/2  LARGE=2/2
+  Total available: 11
 
 --- Vehicles Entering ---
-[ENTRY-A] Issued: Ticket[E7AAB10C] MOTORCYCLE [KA-01-1234] @ Spot F1-S1 | Entry: 2026-02-27 22:57:43
-[ENTRY-A] Issued: Ticket[A62EE46C] CAR [MH-02-5678] @ Spot F1-M1 | Entry: 2026-02-27 22:57:43
+[ENTRY-A] Issued: Ticket[TKT-1] MOTORCYCLE [KA-01-1234] @ Spot F1-S1 | Entry: 2026-02-27 10:30:45
+[ENTRY-A] Issued: Ticket[TKT-2] CAR [MH-02-5678] @ Spot F1-M1 | Entry: 2026-02-27 10:30:45
 ...
 
 --- Vehicles Exiting ---
-[EXIT-A] Exit processed: Ticket[E7AAB10C] ... | Charges: $10.00
+[EXIT-A] Exit processed: Ticket[TKT-1] ... | Charges: $10.00
   Motorcycle charge: $10.00
 ...
 ```
@@ -342,7 +291,7 @@ ParkingTicket ticket = entry1.issueTicket(car);
 //    - Creates ticket with entry time
 
 // 4. Ticket returned to driver
-//    Ticket[A62EE46C] CAR [MH-02-5678] @ Spot F1-M1
+//    Ticket[TKT-2] CAR [MH-02-5678] @ Spot F1-M1
 ```
 
 ### Example: Exiting and Charging
@@ -356,11 +305,11 @@ double charge = exit1.processExit(ticket);
 // Internally calls: ParkingLot.unparkVehicle(ticket)
 
 // 3. ParkingLot:
-//    - Frees the spot (F1-M1 becomes available)
-//    - Calculates duration: exitTime - entryTime
-//    - Calls PricingStrategy.calculateCharge()
-//    - HourlyPricingStrategy: hours = ceil(duration), rate = $20/hr
-//    - Returns charge = hours × rate
+//    - Marks exit time: ticket.markExitTime()
+//    - Frees the spot: ticket.getSpot().removeVehicle()
+//    - Calculates charges: pricingStrategy.calculateCharge(ticket)
+//    - Stores charges: ticket.setCharges(charges)
+//    - Returns charge
 
 // 4. Charge returned: $20.00
 ```
@@ -373,7 +322,7 @@ Vehicle motorcycle = new Vehicle("KA-07-9999", VehicleType.MOTORCYCLE);
 
 // ParkingFloor.findAvailableSpot() logic:
 // 1. Check SMALL spots → all occupied
-// 2. Check MEDIUM spots → canFit(SMALL)? YES (rank 2 >= 1)
+// 2. Check MEDIUM spots → try MEDIUM (motorcycle can use larger spot)
 // 3. Assign motorcycle to MEDIUM spot F1-M1
 
 // Result: Motorcycle parked in MEDIUM spot (fallback)
@@ -405,22 +354,11 @@ Vehicle motorcycle = new Vehicle("KA-07-9999", VehicleType.MOTORCYCLE);
 
 ### Thread Safety
 
-- **Coarse-grained**: `synchronized` on `parkVehicle()`/`unparkVehicle()` methods
-- **Fine-grained**: `synchronized` on individual `ParkingSpot` operations
-- **Double-checked locking**: Thread-safe singleton initialization
+- **Method-level synchronization**: `synchronized` on `parkVehicle()`/`unparkVehicle()` methods
+- **Spot-level synchronization**: `synchronized` on individual `ParkingSpot` operations
+- **Simple singleton**: Synchronized method (kept simple for interviews)
 
 ### Extensibility Examples
-
-**Adding Electric Vehicle Spots:**
-```java
-// 1. Add enum value
-enum SpotType { SMALL, MEDIUM, LARGE, ELECTRIC }
-
-// 2. Add vehicle type
-enum VehicleType { ..., ELECTRIC_CAR(SpotType.ELECTRIC) }
-
-// Done! No other changes needed
-```
 
 **Adding Flat-Rate Pricing:**
 ```java
@@ -434,51 +372,13 @@ class FlatRatePricingStrategy implements PricingStrategy {
 lot.setPricingStrategy(new FlatRatePricingStrategy());
 ```
 
-### Trade-offs Discussed
+### Trade-offs
 
-1. **Singleton vs Multiple Instances**: Chose singleton because only one parking lot exists. Could be extended to support multiple lots.
+1. **Singleton**: Chose singleton because only one parking lot exists. Could be extended to support multiple lots.
 
-2. **Synchronization Granularity**: Used method-level synchronization for simplicity. Could use finer-grained locks per floor/spot for better concurrency.
+2. **Synchronization**: Used method-level synchronization for simplicity. Could use finer-grained locks for better concurrency.
 
-3. **Spot Search Strategy**: Searches floor-by-floor sequentially. Could optimize with priority queues or caching.
-
----
-
-## 🔮 Future Enhancements
-
-### Potential Additions
-
-1. **Reservation System**
-   - Allow users to reserve spots in advance
-   - New class: `Reservation` with time slots
-
-2. **Payment Integration**
-   - Multiple payment methods (cash, card, digital wallet)
-   - Payment strategy pattern
-
-3. **Electric Vehicle Support**
-   - Charging stations as special spot type
-   - Charging time tracking
-
-4. **Valet Parking**
-   - Valet assigns spots on behalf of drivers
-   - Additional service charge
-
-5. **Subscription/Membership**
-   - Monthly/yearly passes
-   - Discounted rates for members
-
-6. **Real-time Dashboard**
-   - Web interface showing live availability
-   - Historical analytics
-
-7. **Multi-lot Support**
-   - Remove singleton constraint
-   - Support multiple parking lots in system
-
-8. **Notification System**
-   - SMS/Email notifications for entry/exit
-   - Reminder for long-parked vehicles
+3. **Simplicity over Performance**: Chose simple HashMap and loops over EnumMap and streams for interview clarity.
 
 ---
 
@@ -487,34 +387,12 @@ lot.setPricingStrategy(new FlatRatePricingStrategy());
 After studying this implementation, you should understand:
 
 - ✅ How to design a complete LLD system from requirements
-- ✅ When and how to apply design patterns (Singleton, Strategy, Factory)
+- ✅ When and how to apply design patterns (Singleton, Strategy)
 - ✅ Thread-safe programming in Java
 - ✅ SOLID principles in practice
 - ✅ Class diagram relationships (association, dependency, composition)
 - ✅ Separation of concerns (models, panels, pricing)
 - ✅ Extensibility through interfaces and polymorphism
-
----
-
-## 🤝 Contributing
-
-This is a learning project. Feel free to:
-- Add new features
-- Improve documentation
-- Fix bugs
-- Suggest design improvements
-
----
-
-## 📄 License
-
-This project is for educational purposes and interview preparation.
-
----
-
-## 👤 Author
-
-Created as part of Low-Level Design (LLD) interview preparation.
 
 ---
 

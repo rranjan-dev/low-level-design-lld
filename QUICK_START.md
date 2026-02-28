@@ -23,7 +23,7 @@ java -cp out com.lld.parkinglot.ParkingLotDemo
 | `ParkingLot` | Singleton orchestrator | `parkVehicle()`, `unparkVehicle()` |
 | `ParkingFloor` | Manages spots on a floor | `findAvailableSpot()` |
 | `ParkingSpot` | Individual parking space | `assignVehicle()`, `removeVehicle()` |
-| `ParkingTicket` | Entry/exit receipt | `issue()` (factory) |
+| `ParkingTicket` | Entry/exit receipt | Constructor (direct) |
 | `EntryPanel` | Entry gate | `issueTicket()` |
 | `ExitPanel` | Exit gate | `processExit()` |
 | `PricingStrategy` | Pricing interface | `calculateCharge()` |
@@ -67,8 +67,6 @@ lot.addFloor(floor1);
 // 3. Create entry/exit panels
 EntryPanel entry = new EntryPanel("ENTRY-1");
 ExitPanel exit = new ExitPanel("EXIT-1");
-lot.addEntryPanel(entry);
-lot.addExitPanel(exit);
 
 // 4. Park a vehicle
 Vehicle car = new Vehicle("ABC-1234", VehicleType.CAR);
@@ -88,7 +86,6 @@ System.out.println(lot.getStatusDisplay());
 
 1. **Singleton** → `ParkingLot` (one instance)
 2. **Strategy** → `PricingStrategy` (swappable pricing)
-3. **Factory Method** → `ParkingTicket.issue()` (controlled creation)
 
 ---
 
@@ -126,7 +123,7 @@ double charge = exit.processExit(ticket);
 === City Center Parking Status ===
   Floor 1: SMALL=2/2  MEDIUM=1/3  LARGE=0/1
   Floor 2: SMALL=1/1  MEDIUM=2/2  LARGE=2/2
-  Total available spots: 8
+  Total available: 7
 ```
 
 Format: `TYPE=available/total`
@@ -149,7 +146,7 @@ int totalAvailable = floor.getTotalAvailableCount();
 
 ### Get Ticket Info
 ```java
-String ticketId = ticket.getTicketId();
+String ticketId = ticket.getTicketId();  // e.g., "TKT-1"
 Vehicle vehicle = ticket.getVehicle();
 ParkingSpot spot = ticket.getSpot();
 LocalDateTime entryTime = ticket.getEntryTime();
@@ -165,6 +162,7 @@ double charges = ticket.getCharges(); // After exit
 3. **Minimum Charge**: Even quick exits charge for 1 hour minimum
 4. **Spot Assignment**: Searches floor-by-floor, exact match first
 5. **Ticket Required**: Must have ticket to exit
+6. **Exit Flow**: markExitTime() → removeVehicle() → calculateCharge() → setCharges()
 
 ---
 
@@ -187,7 +185,7 @@ double charges = ticket.getCharges(); // After exit
 ## 📚 Next Steps
 
 1. Read [README.md](README.md) for full documentation
-2. Check [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) for design rationale
+2. Check [CLASS_DIAGRAM.md](CLASS_DIAGRAM.md) for class relationships
 3. Explore the code in `src/com/lld/parkinglot/`
 
 ---

@@ -1,6 +1,6 @@
 # Design Decisions - Parking Lot System
 
-This document explains the key design decisions made during the implementation of the Parking Lot System, including trade-offs, alternatives considered, and rationale.
+This document explains the key design decisions made during the implementation, focusing on simplicity for interview preparation.
 
 ---
 
@@ -39,28 +39,31 @@ This document explains the key design decisions made during the implementation o
 
 ### 2. Why Singleton for ParkingLot?
 
-**Decision:** ParkingLot uses Singleton pattern with double-checked locking.
+**Decision:** ParkingLot uses Singleton pattern with simple synchronized method.
 
 **Rationale:**
 - **Single Instance Constraint**: Only one parking lot exists in the system
 - **Global Access**: Multiple panels need to access the same lot instance
 - **State Consistency**: Ensures all operations work on the same data
 
+**Implementation:**
+```java
+public static synchronized ParkingLot getInstance(String name) {
+    if (instance == null) {
+        instance = new ParkingLot(name);
+    }
+    return instance;
+}
+```
+
 **Alternative Considered:**
-- Regular class with dependency injection
-- **Rejected because:** Adds complexity for a single-instance use case. Could be extended later if multi-lot support is needed.
+- Double-checked locking
+- **Rejected because:** More complex, harder to remember for interviews
 
 **Trade-off:**
-- ✅ Simpler access pattern (`ParkingLot.getInstance()`)
-- ❌ Harder to test (need `resetInstance()` for test isolation)
-- ❌ Less flexible if multi-lot support is needed later
-
-**Future Extension:**
-```java
-// Could evolve to support multiple lots
-Map<String, ParkingLot> lots = new HashMap<>();
-ParkingLot getLot(String lotId) { ... }
-```
+- ✅ Simple synchronized method (easy to remember)
+- ✅ Thread-safe (synchronized ensures only one thread creates instance)
+- ❌ Slightly less performant than double-checked locking (acceptable for interviews)
 
 ---
 
@@ -70,7 +73,7 @@ ParkingLot getLot(String lotId) { ... }
 
 **Rationale:**
 - **Open/Closed Principle**: Can add new pricing models without modifying existing code
-- **Business Requirement**: Pricing rules change frequently (hourly, flat-rate, surge pricing, membership discounts)
+- **Business Requirement**: Pricing rules change frequently (hourly, flat-rate, surge pricing)
 - **Testability**: Easy to mock pricing for unit tests
 
 **Alternatives Considered:**
@@ -89,7 +92,7 @@ ParkingLot getLot(String lotId) { ... }
    **Rejected:** Still requires modification to add new types
 
 **Impact:**
-- ✅ Easy to add `FlatRatePricingStrategy`, `DynamicPricingStrategy`, `MembershipPricingStrategy`
+- ✅ Easy to add `FlatRatePricingStrategy`, `DynamicPricingStrategy`
 - ✅ Pricing logic isolated and testable
 - ✅ No changes to ParkingLot when pricing changes
 
@@ -97,134 +100,111 @@ ParkingLot getLot(String lotId) { ... }
 
 ## Class Design Decisions
 
-### 4. Why Factory Method for ParkingTicket?
+### 4. Why Direct Constructor for ParkingTicket?
 
-**Decision:** `ParkingTicket` has private constructor with static `issue()` factory method.
+**Decision:** `ParkingTicket` uses public constructor instead of factory method.
 
 **Rationale:**
-- **Semantic Clarity**: `issue()` is more meaningful than `new ParkingTicket()`
-- **Future Validation**: Single point to add validation (e.g., check spot availability)
-- **Flexibility**: Could return subclasses or cached instances in future
+- **Simplicity**: Direct constructor is simpler and easier to remember
+- **Interview Clarity**: Less complexity to explain
+- **Sufficient**: Current requirements don't need factory method complexity
 
 **Code:**
 ```java
-// Current
-public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
-    return new ParkingTicket(vehicle, spot);
-}
-
-// Future: Could add validation
-public static ParkingTicket issue(Vehicle vehicle, ParkingSpot spot) {
-    if (!spot.isAvailable()) {
-        throw new IllegalStateException("Spot not available");
-    }
-    return new ParkingTicket(vehicle, spot);
+// Simple direct constructor
+public ParkingTicket(Vehicle vehicle, ParkingSpot spot) {
+    this.ticketId = "TKT-" + ticketCounter++;
+    this.vehicle = vehicle;
+    this.spot = spot;
+    this.entryTime = LocalDateTime.now();
 }
 ```
 
-**Alternative:** Public constructor
-- **Rejected:** Less control, harder to add validation later
+**Alternative:** Factory method `issue()`
+- **Rejected:** Adds unnecessary complexity for interview preparation
 
 ---
 
-### 5. Why EnumMap for Spot Storage?
+### 5. Why HashMap for Spot Storage?
 
-**Decision:** `ParkingFloor` uses `EnumMap<SpotType, List<ParkingSpot>>` instead of `Map<String, List<ParkingSpot>>`.
+**Decision:** `ParkingFloor` uses `HashMap<SpotType, List<ParkingSpot>>` instead of `EnumMap`.
 
 **Rationale:**
-- **Type Safety**: Compile-time guarantee that keys are valid SpotType values
-- **Performance**: EnumMap is optimized for enum keys (faster than HashMap)
-- **Memory**: More memory-efficient than HashMap for enum keys
+- **Simplicity**: HashMap is more familiar and easier to explain
+- **Interview Clarity**: Less to remember (no EnumMap specifics)
+- **Sufficient**: Performance difference is negligible for interview scenarios
 
 **Code:**
 ```java
-private final Map<SpotType, List<ParkingSpot>> spotsByType;
-
-// Initialization
-spotsByType = new EnumMap<>(SpotType.class);
-for (SpotType type : SpotType.values()) {
-    spotsByType.put(type, new ArrayList<>());
-}
+this.spotsByType = new HashMap<>();
+spotsByType.put(SpotType.SMALL, new ArrayList<>());
+spotsByType.put(SpotType.MEDIUM, new ArrayList<>());
+spotsByType.put(SpotType.LARGE, new ArrayList<>());
 ```
 
-**Alternative:** HashMap with String keys
-- **Rejected:** Less type-safe, potential for typos, slower lookups
+**Alternative:** EnumMap
+- **Rejected:** More complex, harder to remember for interviews
 
 ---
 
-### 6. Why Size Ranking in SpotType?
+### 6. Why Simple Enum for SpotType?
 
-**Decision:** SpotType enum has `sizeRank` (1, 2, 3) and `canFit()` method.
+**Decision:** SpotType enum has no methods (no `canFit()` or `getSizeRank()`).
 
 **Rationale:**
-- **Fallback Logic**: Enables "larger spot can fit smaller vehicle" rule
-- **No If-else**: Avoids scattered if-else chains throughout codebase
-- **Extensibility**: Easy to add new spot types (e.g., XL with rank 4)
+- **Simplicity**: Easier to understand and remember
+- **Logic Location**: Fallback logic moved to `ParkingFloor.findAvailableSpot()` where it's clearer
+- **Interview Clarity**: Less enum complexity to explain
 
 **Code:**
 ```java
 public enum SpotType {
-    SMALL(1), MEDIUM(2), LARGE(3);
-    
-    public boolean canFit(SpotType requiredType) {
-        return this.sizeRank >= requiredType.sizeRank;
-    }
+    SMALL,
+    MEDIUM,
+    LARGE
 }
 ```
 
-**Alternative:** Hardcoded if-else in `findAvailableSpot()`
+**Alternative:** Enum with `canFit()` method
+- **Rejected:** Adds complexity, logic is clearer in ParkingFloor
+
+---
+
+### 7. Why Sequential Ticket IDs?
+
+**Decision:** Ticket IDs use simple counter (TKT-1, TKT-2, ...) instead of UUID.
+
+**Rationale:**
+- **Simplicity**: Easy to understand and remember
+- **Interview Clarity**: No UUID complexity to explain
+- **Sufficient**: Sequential IDs work fine for single-instance system
+
+**Code:**
 ```java
-if (vehicleType == MOTORCYCLE && spotType == SMALL) return true;
-if (vehicleType == CAR && (spotType == MEDIUM || spotType == LARGE)) return true;
+private static int ticketCounter = 1;
+this.ticketId = "TKT-" + ticketCounter++;
 ```
-**Rejected:** Scattered logic, hard to maintain, violates DRY principle
+
+**Alternative:** UUID
+- **Rejected:** More complex, harder to remember for interviews
 
 ---
 
 ## Pattern Choices
 
-### 7. Why Not Observer Pattern for Availability Updates?
+### 8. Why Not Observer Pattern for Availability Updates?
 
 **Decision:** Status is queried on-demand via `getStatusDisplay()`, not pushed via Observer pattern.
 
 **Rationale:**
 - **Simplicity**: Current requirements don't need real-time notifications
 - **Pull vs Push**: Pull model (query when needed) is simpler than push (notify on change)
-- **Future Extension**: Can add Observer pattern later if needed
+- **Interview Clarity**: Less patterns to explain
 
 **When to Add Observer:**
 - If multiple dashboards need real-time updates
 - If mobile app needs push notifications
 - If admin needs alerts when lot is full
-
-**Future Enhancement:**
-```java
-interface AvailabilityObserver {
-    void onSpotOccupied(ParkingSpot spot);
-    void onSpotFreed(ParkingSpot spot);
-}
-
-class ParkingLot {
-    private List<AvailabilityObserver> observers;
-    public void addObserver(AvailabilityObserver observer) { ... }
-}
-```
-
----
-
-### 8. Why Not Command Pattern for Operations?
-
-**Decision:** Direct method calls (`parkVehicle()`, `unparkVehicle()`) instead of Command objects.
-
-**Rationale:**
-- **Simplicity**: No need for undo/redo, queuing, or logging yet
-- **Current Requirements**: Operations are synchronous and immediate
-- **Future Extension**: Can add Command pattern if needed for audit logs or undo
-
-**When to Add Command Pattern:**
-- If operations need to be logged/audited
-- If undo functionality is required
-- If operations need to be queued/batched
 
 ---
 
@@ -235,51 +215,32 @@ class ParkingLot {
 **Decision:** `synchronized` on `parkVehicle()` and `unparkVehicle()` methods in ParkingLot.
 
 **Rationale:**
-- **Simplicity**: Easy to understand and maintain
+- **Simplicity**: Easy to understand and explain
 - **Correctness**: Prevents race conditions when multiple threads park simultaneously
-- **Performance**: Acceptable for most use cases (parking operations are not high-frequency)
+- **Interview Clarity**: Simple synchronization is easier to discuss
 
 **Code:**
 ```java
 public synchronized ParkingTicket parkVehicle(Vehicle vehicle) {
     for (ParkingFloor floor : floors) {
         ParkingSpot spot = floor.findAvailableSpot(vehicle.getVehicleType());
-        if (spot != null) {
+        if (spot != null && spot.isAvailable()) {
             spot.assignVehicle(vehicle);
-            return ParkingTicket.issue(vehicle, spot);
+            return new ParkingTicket(vehicle, spot);
         }
     }
-    throw new RuntimeException("No available spot");
+    throw new RuntimeException("No available spot for " + vehicle);
 }
 ```
 
 **Alternative: Fine-Grained Locking**
-```java
-// Lock per floor or per spot
-private final Map<Integer, ReentrantLock> floorLocks;
-
-public ParkingTicket parkVehicle(Vehicle vehicle) {
-    for (ParkingFloor floor : floors) {
-        floorLocks.get(floor.getFloorNumber()).lock();
-        try {
-            // search spots
-        } finally {
-            floorLocks.get(floor.getFloorNumber()).unlock();
-        }
-    }
-}
-```
+- **Rejected:** More complex, harder to explain in interviews
 
 **Trade-off:**
 - ✅ Current: Simpler, easier to reason about
 - ❌ Current: Lower concurrency (one thread parks at a time)
-- ✅ Fine-grained: Higher concurrency (multiple threads can park on different floors)
+- ✅ Fine-grained: Higher concurrency
 - ❌ Fine-grained: More complex, potential for deadlocks
-
-**When to Use Fine-Grained:**
-- High-frequency operations (hundreds of vehicles per minute)
-- Large parking lots (100+ floors)
-- Performance-critical scenarios
 
 ---
 
@@ -303,10 +264,6 @@ public synchronized void assignVehicle(Vehicle vehicle) {
 }
 ```
 
-**Why Not Just ParkingLot Lock?**
-- Spot-level locks allow concurrent operations on different spots
-- Even with ParkingLot lock, spot-level lock prevents bugs if lock is removed accidentally
-
 ---
 
 ## Data Structure Choices
@@ -318,47 +275,30 @@ public synchronized void assignVehicle(Vehicle vehicle) {
 **Rationale:**
 - **Random Access**: Need to iterate and check availability, not FIFO
 - **No Ordering Requirement**: Spots don't need to be assigned in order
-- **Flexibility**: Can implement different allocation strategies (nearest to entrance, etc.)
+- **Simplicity**: List is simpler and more familiar
 
 **Alternative: PriorityQueue**
-- Could use if we want "nearest spot first" allocation
 - **Not chosen:** Current requirements don't specify spot selection strategy
-
-**Future Enhancement:**
-```java
-// Could add spot selection strategy
-interface SpotSelectionStrategy {
-    ParkingSpot selectSpot(List<ParkingSpot> availableSpots);
-}
-
-class NearestEntranceStrategy implements SpotSelectionStrategy {
-    // Select spot closest to entrance
-}
-```
 
 ---
 
-### 12. Why UUID for Ticket IDs?
+### 12. Why Counter for Ticket IDs?
 
-**Decision:** Ticket IDs generated from UUID (first 8 characters).
+**Decision:** Ticket IDs generated from simple counter (TKT-1, TKT-2, ...).
 
 **Rationale:**
-- **Uniqueness**: Guaranteed unique across time and space
-- **No Collisions**: No need to check if ID already exists
-- **Security**: Harder to guess than sequential IDs
+- **Simplicity**: Easy to understand and remember
+- **No Collisions**: Counter ensures uniqueness in single-instance system
+- **Interview Clarity**: No UUID complexity
 
-**Alternative: Sequential IDs**
-```java
-private static int nextTicketId = 1;
-String ticketId = "TKT-" + nextTicketId++;
-```
-**Rejected:** Requires synchronization, potential for collisions in distributed systems
+**Alternative: Sequential IDs with synchronization**
+- **Not needed:** Counter increment is simple enough
 
 **Trade-off:**
-- ✅ UUID: Truly unique, no synchronization needed
-- ❌ UUID: Longer, less human-readable
-- ✅ Sequential: Shorter, easier to remember
-- ❌ Sequential: Requires locking, not suitable for distributed systems
+- ✅ Counter: Simple, easy to remember
+- ❌ Counter: Not suitable for distributed systems (but fine for single instance)
+- ✅ UUID: Truly unique, distributed-safe
+- ❌ UUID: More complex, harder to remember
 
 ---
 
@@ -368,20 +308,20 @@ String ticketId = "TKT-" + nextTicketId++;
 
 | Decision | Chosen | Alternative | Trade-off |
 |----------|--------|------------|-----------|
-| **Singleton** | Yes | Dependency Injection | Simpler vs More flexible |
+| **Singleton** | Simple synchronized | Double-checked locking | Simpler vs Slightly less performant |
 | **Method-level sync** | Yes | Fine-grained locks | Simpler vs Higher concurrency |
 | **Strategy pattern** | Yes | If-else chain | Extensible vs More classes |
-| **EnumMap** | Yes | HashMap | Type-safe vs More generic |
-| **Factory method** | Yes | Public constructor | Controlled vs Direct access |
-| **UUID tickets** | Yes | Sequential IDs | Unique vs Readable |
+| **HashMap** | Yes | EnumMap | Simpler vs More type-safe |
+| **Direct constructor** | Yes | Factory method | Simpler vs More controlled |
+| **Counter tickets** | Yes | UUID | Simpler vs Distributed-safe |
 
 ---
 
 ## Design Principles Applied
 
-1. **YAGNI (You Aren't Gonna Need It)**: Didn't add Observer, Command patterns until needed
-2. **KISS (Keep It Simple, Stupid)**: Chose simpler synchronization over complex fine-grained locks
-3. **DRY (Don't Repeat Yourself)**: Size ranking in enum avoids scattered if-else
+1. **KISS (Keep It Simple, Stupid)**: Chose simpler implementations over complex ones
+2. **YAGNI (You Aren't Gonna Need It)**: Didn't add Observer, Command patterns until needed
+3. **DRY (Don't Repeat Yourself)**: Fallback logic in one place (ParkingFloor)
 4. **SOLID**: Each principle applied where appropriate
 5. **Separation of Concerns**: Clear boundaries between models, panels, pricing
 
@@ -391,8 +331,8 @@ String ticketId = "TKT-" + nextTicketId++;
 
 These design decisions prioritize:
 - **Correctness**: Thread-safe, no race conditions
-- **Maintainability**: Clear structure, easy to understand
-- **Extensibility**: Can add features without major refactoring
-- **Simplicity**: Not over-engineered for current requirements
+- **Simplicity**: Easy to understand and remember for interviews
+- **Maintainability**: Clear structure, easy to extend
+- **Interview Readiness**: Code that's easy to explain and justify
 
-The design balances these concerns while remaining interview-ready and production-quality.
+The design balances these concerns while remaining interview-friendly and production-quality.
